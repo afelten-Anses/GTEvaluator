@@ -1,0 +1,347 @@
+#!/usr/bin/python
+# -*- coding: iso-8859-1 -*-
+import os, sys, time
+import argparse
+import uuid
+from subprocess import Popen, list2cmdline
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.Alphabet import IUPAC
+
+
+__doc__="""
+For each genomes, matchs targets against sequences.
+Make a matrix with 1 if the target is present, 0 otherwise.
+
+@requires: U{python 2.7<https://www.python.org/downloads/>} (tested with 2.7.6)
+@requires: U{Biopython<http://biopython.org/wiki/Download>}
+@requires: U{EMBOSS<http://emboss.sourceforge.net/download/>}
+"""
+
+
+def get_parser():
+	"""
+	Parse arguments
+	@return: arguments list
+	@rtype: parser object
+	"""
+
+	parser = argparse.ArgumentParser(description='For each genomes, match primers against sequence. \
+		Make a matrix with 1 if the primer is present, 0 otherwise.')
+
+	parser.add_argument('-i', action="store", dest='FASTA', 
+						type=str, help='genomes list with servovar name separated by tabular')
+
+	parser.add_argument('-p', action="store", dest='CSV', 
+						type=str, help='target TSV file')
+
+	parser.add_argument('-m', action="store", dest='maxDistance', 
+						type=int, default='1400', help='primers forward and reverse max distance (default:1400)')
+
+	parser.add_argument('-T', action="store", dest='nbThreads', 
+						type=int, default='1', help='maximum number of threads to use (default:1)')
+
+	parser.add_argument('-o', action="store", dest='output', 
+						type=str, default='output', help='output name (default:output)')
+
+	parser.add_argument('--trim', action="store", dest='trim', 
+						type=int, default=0, help='number of nucleotides to trim at 5\' (default:0)')	
+
+
+	return parser
+
+def exec_commands(cmds, nbThreads):
+    ''' Exec commands in parallel in multiple process 
+    (as much as we have CPU)
+    '''
+    if not cmds: return # empty list
+
+    def done(p):
+        return p.poll() is not None
+    def success(p):
+        return p.returncode == 0
+    def fail():
+        sys.exit(1)
+
+    max_task = nbThreads
+    processes = []
+    while True:
+        while cmds and len(processes) < max_task:
+            task = cmds.pop()
+            #print list2cmdline(task)
+            processes.append(Popen(task))
+
+        for p in processes:
+            if done(p):
+                if success(p):
+                    processes.remove(p)
+                else:
+                    fail()
+
+        if not processes and not cmds:
+            break
+        else:
+            time.sleep(0.05)
+
+
+def transformDegeneratedSeq(seq, trim):
+	"""
+	@param seq: nucleic sequence
+	@type seq: string
+	@param trim: number of 5' nucleotides to trim
+	@type trim: integer
+	@return: transformed sequence
+	@rtype: string
+	"""
+
+	if trim < len(seq) :
+		return(seq[trim:])	
+	else :
+		return seq
+
+
+def replaceDegenerated(seq):
+	"""
+	Transform sequence degenerated with ambigous nucleotides for the regex matching
+	@param seq: nucleic sequence
+	@type seq: string
+	@return: transformed sequence
+	@rtype: string
+	"""
+
+	seq = seq.replace("R","N")
+	seq = seq.replace("K","N")
+	seq = seq.replace("S","N")
+	seq = seq.replace("W","N")
+	seq = seq.replace("M","N")
+	seq = seq.replace("Y","N")
+	seq = seq.replace("D","N")
+	seq = seq.replace("V","N")
+	seq = seq.replace("B","N")
+	seq = seq.replace("H","N")
+
+	return seq
+
+
+def primerReader(file, trim, maxDistance) :
+	"""
+	Reads the primer file and stocks informations in a dictionnary
+	@param file: file name
+	@type file: string
+	@param trim: number of 5' nucleotides to trim
+	@type trim: integer
+	@param maxDistance: maximum distance between the 2 primers
+	@type maxDistance: integer
+	@return: dictionnary with the primer name for key and a list composed by the primers sequences and the regex pattern as value
+	@rtype: dictionnary
+	"""
+
+	primer = open(file, "rb")
+	lines = primer.readlines()
+	primer.close()
+	dico = {}
+
+	for line in lines:
+		if(len(line)>1):
+			primerName = line.split('\t')[0]
+			primer1 = line.split('\t')[1]
+			primer1 = transformDegeneratedSeq(primer1, trim)
+			p1 = primer1
+
+			#primer2 = line.split('\t')[2]
+			#if(len(primer2)>0):
+			if(len(line.split('\t'))>2):
+				primer2 = line.split('\t')[2]
+				
+					
+				primer2 = transformDegeneratedSeq(primer2, trim)
+				p2 = primer2		
+				my_seq = Seq(primer2, IUPAC.unambiguous_dna)	
+				primer2=str(my_seq.reverse_complement())
+
+				if(len(primer2.upper())>1):
+					pattern1 = primer1.upper() + "N(1," + str(maxDistance) + ")" + primer2.upper()	
+				else:
+					pattern1 = primer1.upper()	
+				pattern1=replaceDegenerated(pattern1)
+
+
+			else:
+				pattern1 = primer1.upper()
+				pattern1=replaceDegenerated(pattern1)
+				p2 = ''
+
+			final_pattern = pattern1
+			final_pattern = final_pattern.replace('\n','')
+
+			dico[primerName] = [p1, p2, final_pattern]
+
+			#print primerName + '\t' + final_pattern
+
+	return dico
+
+
+def genomeReader(file) :
+	"""
+	Reads the genomes list file
+	@param file: file name
+	@type file: string
+	@return: dictionnary with genome file for key and the serovar name as value
+	@rtype: dictionnary
+	"""	
+
+	genome = open(file, "rb")
+	lines = genome.readlines()
+	genome.close()
+	dico = {}
+
+	for line in lines:
+		if(line!="\n"):
+			genomeFile = line.split('\t')[0]
+			genomeName= line.split('\t')[1]
+			if ('\n' in genomeName):
+				genomeName = genomeName[0:len(genomeName)-1]
+
+		dico[genomeFile] = genomeName
+		f=open(genomeFile, "rb")
+		f.close()
+
+	return dico
+
+
+#main function	
+def main():
+
+
+	##################### gets arguments #####################
+	parser=get_parser()
+	
+	#print parser.help if no arguments
+	if len(sys.argv)==1:
+		parser.print_help()
+		sys.exit(1)
+	
+	Arguments=parser.parse_args()
+
+	Arguments.nbPrimerMismatch = 0
+	Arguments.nbTargetMismatch = 0
+
+	##################### ckecks arguments #####################
+
+	if (not Arguments.FASTA) or (not Arguments.CSV):
+		print "Error : genomes file and/or primers file not specified"
+		sys.exit(1)
+
+	#create a unique name for the tempory file	
+	tmpFile = str(uuid.uuid4()) + '.tmp'
+
+	
+
+	#make the primer dictionnary
+	primerDico = primerReader(Arguments.CSV, Arguments.trim, Arguments.maxDistance)
+
+	primerKey = []
+	#recovers primers names
+	for key in primerDico:
+		primerKey.append(key)
+
+	#make the genomes dictionnary	
+	genomes = genomeReader(Arguments.FASTA)	
+
+	out = open(Arguments.output, "wb")
+
+	lprimer = []
+
+	#print the first line of the output
+	out.write("fileName\tgroup")
+	for primer in primerKey :
+		out.write('\t' + primer)
+		lprimer.append(primer)
+	out.write("\n")
+	out.close()	
+	
+	tmp = open(tmpFile, "wb")		
+	i = 0
+	j = 1.0
+
+	print "Process ..."
+		
+	for files in genomes : 	
+
+		i+=1
+
+		#print progression information
+		if((float(i)/float(len(genomes)))*100.0 > j*10.0):
+			print "................. " + str(int(j*10)) + "%"
+			j+=1
+
+		dicoResult = {}
+		for primer in lprimer :
+			dicoResult[primer] = '0'
+		
+
+		fileName = files.split("/")
+		fileName = fileName[len(fileName)-1]
+		tmp.write(fileName + "\t")	
+		tmp.write(genomes[files])	
+
+
+		dicoCmd = {}
+		cmds = []
+		i = 0
+		j = 0
+
+		for primer in primerDico:
+
+			pattern = primerDico[primer][2]
+
+			if 'N(' in pattern :
+				nbMismatch = Arguments.nbPrimerMismatch
+			else :
+				nbMismatch = Arguments.nbTargetMismatch	
+
+			tmp2File = str(uuid.uuid4()) + '.tmp'	
+
+			dicoCmd[primer] = tmp2File 
+
+			commandeLine = "-sequence " + files + " -pattern '" + pattern + "' -complement Yes -pmismatch " + \
+			str(nbMismatch) + " -outfile " + tmp2File
+			
+			cmds.append(['fuzznuc','-sequence', files, '-pattern', pattern, '-complement', 'Yes', \
+				'-pmismatch', str(nbMismatch), '-outfile', tmp2File])
+
+			i += 1
+			j += 1
+
+			if i == Arguments.nbThreads or j == len(primerDico.keys()):
+
+				i = 0
+
+				exec_commands(cmds, Arguments.nbThreads)
+				cmds = []
+
+				for p in dicoCmd :
+					for line in open(dicoCmd[p]):
+ 						if "Reported_hitcount:" in line:
+  							nb = int(line.split(":")[1])
+  							if nb > 0 : dicoResult[p] = '1'
+  							break
+
+
+
+		for primer in lprimer :
+			#print the liste of 1 or 0 for abscence/presence of each primers
+			tmp.write('\t' + dicoResult[primer])	
+		tmp.write('\n')	
+
+	print "................. 100%"	
+
+	tmp.close()		
+
+	#sort output by serovar name
+	os.system("sort -k 2 " + tmpFile + " >> " + Arguments.output)
+	os.system("rm *.tmp")
+			
+
+if __name__ == "__main__":
+	main()		

@@ -1,0 +1,345 @@
+#!/usr/bin/python
+# -*- coding: iso-8859-1 -*-
+import os, sys
+import csv
+import argparse
+import re
+import copy
+from lxml import etree
+from scipy.stats import beta
+import matplotlib.pyplot as plt
+
+__doc__="""
+Compute specificity and sensitivity for each target and variant from matrix. 
+
+@requires: U{python 2.7<https://www.python.org/downloads/>} (tested with 2.7.6)
+@requires: U{scipy <http://www.scipy.org/scipylib/download.html>}
+"""
+
+def get_parser():
+	"""
+	Parse arguments
+	@return: arguments list
+	@rtype: parser object
+	"""
+
+	parser = argparse.ArgumentParser(description='Compute specificity and sensitivity for each target and variant from matrix')
+
+	parser.add_argument('-i', action="store", dest='TSV', 
+						type=str, required=True, help='matrix file')
+
+	parser.add_argument('-o', action="store", dest='outputDir', 
+						type=str, default="output", help='output prefix name (default:output)')
+
+	parser.add_argument('--CiMin', action="store", dest='Ci_min', 
+						type=float, default=0.025, help='minimum confidence value (default:0.025)')
+
+	parser.add_argument('--CiMax', action="store", dest='Ci_max', 
+						type=float, default=0.975, help='maximum confidence value (default:0.975)')
+
+
+	return parser
+
+
+class primerStat(object) :
+	"""
+	Create primerStat object to stock statistic about this primer combinaison
+	@param primer : primer combinaison name
+	@type primer : string
+	@param sensitivity : combinaison sensitivity 
+	@type sensitivity : float
+	@param specificity : combinaison specificity
+	@type specificity : float
+	@param distance : combinaison distance
+	@type distance : float
+	@param Ci_Se : sensitivity confidence
+	@type Ci_Se : float
+	@param Ci_Sp : specificity confidence
+	@type Ci_Sp : float
+	@param TP : number of true positif
+	@type TP : integer
+	@param FP : number of false positif 
+	@type FP : integer
+	@param FN : number of false negatif 
+	@type FN : integer
+	@param TN : number of false negatif
+	@type TN : integer
+	"""
+
+	def __init__(self, primer):
+		"""
+		Initialize the node class
+		@param primer : primer combinaison name
+		@type primer : string
+		"""
+		self.primer = primer
+		self.sensitivity = 0.0
+		self.specificity = 0.0
+		self.distance = 0.0
+		self.Ci_Se = 0.0
+		self.Ci_Sp = 0.0
+		self.TP = 0
+		self.FP = 0
+		self.FN = 0
+		self.TN = 0
+
+	def computeSensitivity(self):
+		"""
+		Compute the sensitivity
+		"""
+		self.sensitivity=round(float(self.TP)/float(float(self.TP)+float(self.FN)),3)
+
+	def computeSpecificity(self):
+		"""
+		Compute the specificity
+		"""
+		self.specificity=round(float(self.TN)/float(float(self.TN)+float(self.FP)),3)		
+
+	def computeDistance(self):
+		"""
+		Compute the distance
+		"""
+		self.distance=round(((1-self.sensitivity)**2+(1-self.specificity)**2)**0.5,4)	
+
+	def computeCi_Se(self, Ci_min, Ci_max):
+		"""
+		Compute the sensitivity confidence interval
+		"""
+		self.Ci_Se = beta.ppf([Ci_min, Ci_max], self.TP+1, self.FN+1)	
+
+	def computeCi_Sp(self, Ci_min, Ci_max):	
+		"""
+		Compute the specificity confidence interval
+		"""
+		self.Ci_Sp = beta.ppf([Ci_min, Ci_max], self.TN+1, self.FP+1)
+
+
+#main function	
+def main():
+
+
+	parser=get_parser()
+		
+	#print parser.help if no arguments
+	if len(sys.argv)==1:
+		parser.print_help()
+		sys.exit(1)
+
+	Arguments=parser.parse_args()
+	varSubject = "all"
+
+	with open(Arguments.TSV, 'rb') as csvfile:
+		TSVreader = csv.reader(csvfile, delimiter='\t')
+
+		firstLine = True
+		totalPrimer = {}
+		result = {}
+		listPrimer = []
+		dicoVar = {}
+
+		varName = ""
+
+		for row in TSVreader :
+
+			if firstLine :
+				for element in row[2:] :
+					if len(element)>0 :
+						totalPrimer[element] = 0
+						listPrimer.append(element)
+				firstLine = False		
+
+			else :
+				varName = row[1]
+				if varName not in result.keys() :
+					result[varName] = {}
+					for p in listPrimer :
+						result[varName][p] = primerStat(p)
+					dicoVar[varName] = 1
+					
+				else :
+					dicoVar[varName]+=1		
+
+				j = 0		
+				for col in row[2:]:
+					if(col=='1'):
+						result[varName][listPrimer[j]].TP+=1		
+						#print varName + " " + listPrimer[j]
+					else:
+						result[varName][listPrimer[j]].FN+=1			
+					j+=1
+
+		# add TN and TP for each variant			
+		for varName in result :
+			for var in result :
+				if(var != varName):
+					for p in result[varName] :
+						result[varName][p].TN += result[var][p].FN
+						result[varName][p].FP += result[var][p].TP
+						
+		
+		# sort targets				
+
+		orderVariant = {}	
+					
+		for varName in result :
+			order = []
+			dicoDistance = {}
+
+			for p in result[varName] :				
+
+				result[varName][p].computeSensitivity()
+				result[varName][p].computeSpecificity()
+				result[varName][p].computeDistance()
+				result[varName][p].computeCi_Se(Arguments.Ci_min, Arguments.Ci_max)
+				result[varName][p].computeCi_Sp(Arguments.Ci_min, Arguments.Ci_max)
+
+				dicoDistance[p] = result[varName][p].distance
+
+			while len(dicoDistance.keys())>0 :
+				minP = ""
+				minSe = 2.0
+				for p in dicoDistance :	
+					if dicoDistance[p] < minSe :
+						minP = p
+						minSe = dicoDistance[p]
+				order.append(minP)
+				del dicoDistance[minP]
+
+			orderVariant[varName] = order
+				
+		
+	# print output		
+
+	outTab = open(Arguments.outputDir + ".tsv", "wb")
+			
+	#print orderVariant
+
+	pos = {}
+
+	for variant in orderVariant :
+
+		outTab.write(variant + "\n")
+		#tab header
+		outTab.write("target\tSe\tSp\tdistance\tCi_Se_min\tCi_Se_max\tCi_Sp_min\tCi_Sp_max\tpos\n")
+
+		dicoPos = {}
+		i = 0
+
+		for target in orderVariant[variant] :
+
+			outTab.write(target + "\t")
+			outTab.write(str(result[variant][target].sensitivity)+"\t")
+			outTab.write(str(result[variant][target].specificity)+"\t")
+			outTab.write(str(result[variant][target].distance)+"\t")
+
+			Ci_Se = str(result[variant][target].Ci_Se)
+			Ci_Se_min = round(result[variant][target].Ci_Se[0],4)
+			Ci_Se_max = round(result[variant][target].Ci_Se[1],4)
+			outTab.write(str(Ci_Se_min)+"\t")
+			outTab.write(str(Ci_Se_max)+"\t")
+
+			Ci_Sp = str(result[variant][target].Ci_Sp)
+			Ci_Sp_min = round(result[variant][target].Ci_Sp[0],4)
+			Ci_Sp_max = round(result[variant][target].Ci_Sp[1],4)
+			outTab.write(str(Ci_Sp_min)+"\t")
+			outTab.write(str(Ci_Sp_max)+"\t")
+
+
+			# target position number in graphical output
+			flag = False
+			for element in dicoPos :
+				if((dicoPos[element][0]==result[variant][target].sensitivity) and \
+					(dicoPos[element][1]==result[variant][target].specificity)):
+					outTab.write(str(element)+"\n")	
+					flag = True
+			if flag==False:
+				i+=1
+				dicoPos[i]=[result[variant][target].sensitivity, result[variant][target].specificity]	
+				outTab.write(str(i)+"\n")
+
+
+		pos[variant]=dicoPos		
+	
+
+		outTab.write("\n\n")	
+
+
+	outTab.close()	
+
+	#plot
+
+	nbVariant = 0
+
+	for variant in result :
+
+		nbVariant+=1 
+
+		specificityList = []
+		sensitivityList = []
+
+		for target in result[variant] :
+			specificityList.append(result[variant][target].specificity)
+			sensitivityList.append(result[variant][target].sensitivity)
+
+		plt.axis([0, 1, 0, 1])
+		plt.plot(specificityList,sensitivityList,linestyle='',marker='+',color='k', markersize = 15, \
+			markeredgewidth = 2, markeredgecolor = 'dimgray') 
+
+		'''for target in result[variant] :
+			spe = result[variant][target].specificity
+			sen = result[variant][target].sensitivity
+			plt.text(spe, sen, target, horizontalalignment = 'center', verticalalignment = 'center')'''
+
+		for element in pos[variant] :
+				
+			y = pos[variant][element][0]
+			x = pos[variant][element][1]	
+			plt.annotate(str(element), xy=(x,y), xytext=(x+0.02, y+0.02), fontsize=10, color='dimgray')
+
+
+
+		plt.gca().invert_xaxis()
+		plt.ylabel('sensitivity')
+		plt.xlabel("specificity")	
+
+		filesName = Arguments.outputDir + "_" + variant
+		plt.savefig(filesName + '.png') 
+		plt.draw() 
+		plt.close() 
+
+
+	if(nbVariant < 6) :
+
+		color = ["midnightblue","crimson", "forestgreen", "darkturquoise", "darkmagenta"]
+		plt.axis([0, 1, 0, 1])
+		i = 0
+
+		for variant in result :
+
+
+			specificityList = []
+			sensitivityList = []
+
+			for target in result[variant] :
+				specificityList.append(result[variant][target].specificity)
+				sensitivityList.append(result[variant][target].sensitivity)
+
+			plt.plot(specificityList,sensitivityList,linestyle='',marker='+',color='k', markersize = 15, \
+			markeredgewidth = 2, markeredgecolor = color[i], label = variant)
+
+			i+=1	
+
+		plt.gca().invert_xaxis()
+		plt.ylabel('sensitivity')
+		plt.xlabel("specificity")	
+		plt.legend(loc=4, prop={'size':12})
+
+		filesName = Arguments.outputDir + "_combin"
+		plt.savefig(filesName + '.png') 
+		plt.draw() 
+		plt.close()
+
+
+
+if __name__ == "__main__":
+	main()					
