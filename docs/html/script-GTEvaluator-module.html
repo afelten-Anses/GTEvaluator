@@ -3,7 +3,7 @@
           "DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
-  <title>script-GTSelector_statistic</title>
+  <title>script-GTEvaluator</title>
   <link rel="stylesheet" href="epydoc.css" type="text/css" />
   <script type="text/javascript" src="epydoc.js"></script>
 </head>
@@ -34,7 +34,7 @@
   <tr valign="top">
     <td width="100%">
       <span class="breadcrumbs">
-        Script&nbsp;GTSelector_statistic
+        Script&nbsp;GTEvaluator
       </span>
     </td>
     <td>
@@ -44,16 +44,16 @@
     onclick="toggle_private();">hide&nbsp;private</a>]</span></td></tr>
         <tr><td align="right"><span class="options"
             >[<a href="frames.html" target="_top">frames</a
-            >]&nbsp;|&nbsp;<a href="script-GTSelector_statistic-module.html"
+            >]&nbsp;|&nbsp;<a href="script-GTEvaluator-module.html"
             target="_top">no&nbsp;frames</a>]</span></td></tr>
       </table>
     </td>
   </tr>
 </table>
 <!-- ==================== SCRIPT DESCRIPTION ==================== -->
-<h1 class="epydoc">Script GTSelector_statistic</h1><p class="nomargin-top"></p>
-<p>Compute specificity and sensitivity for each target and variant from 
-  matrix.</p>
+<h1 class="epydoc">Script GTEvaluator</h1><p class="nomargin-top"></p>
+<p>GTEvaluator workfow. First, run GTEvaluator_matrixMaker then run 
+  GTEvaluator_statistic.</p>
 
 <hr />
 <div class="fields">      <strong>Requires:</strong>
@@ -63,38 +63,25 @@
         2.7</a> (tested with 2.7.6)
         </li>
         <li>
+        <a href="http://biopython.org/wiki/Download" 
+        target="_top">Biopython</a>
+        </li>
+        <li>
         <a href="http://www.scipy.org/scipylib/download.html" 
         target="_top">scipy</a>
         </li>
+        <li>
+        <a href="http://emboss.sourceforge.net/download/" 
+        target="_top">EMBOSS</a>
+        </li>
+        <li>
+        GTEvaluator_matrixMaker
+        </li>
+        <li>
+        GTEvaluator_statistic
+        </li>
       </ul>
-</div><!-- ==================== CLASSES ==================== -->
-<a name="section-Classes"></a>
-<table class="summary" border="1" cellpadding="3"
-       cellspacing="0" width="100%" bgcolor="white">
-<tr bgcolor="#70b0f0" class="table-header">
-  <td colspan="2" class="table-header">
-    <table border="0" cellpadding="0" cellspacing="0" width="100%">
-      <tr valign="top">
-        <td align="left"><span class="table-header">Classes</span></td>
-        <td align="right" valign="top"
-         ><span class="options">[<a href="#section-Classes"
-         class="privatelink" onclick="toggle_private();"
-         >hide private</a>]</span></td>
-      </tr>
-    </table>
-  </td>
-</tr>
-<tr>
-    <td width="15%" align="right" valign="top" class="summary">
-      <span class="summary-type">&nbsp;</span>
-    </td><td class="summary">
-        <a href="script-GTSelector_statistic.primerStat-class.html" class="summary-name">primerStat</a><br />
-      Create primerStat object to stock statistic about this primer 
-        combinaison
-    </td>
-  </tr>
-</table>
-<!-- ==================== FUNCTIONS ==================== -->
+</div><!-- ==================== FUNCTIONS ==================== -->
 <a name="section-Functions"></a>
 <table class="summary" border="1" cellpadding="3"
        cellspacing="0" width="100%" bgcolor="white">
@@ -117,7 +104,7 @@
     </td><td class="summary">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td><span class="summary-sig"><a href="script-GTSelector_statistic-module.html#get_parser" class="summary-sig-name">get_parser</a>()</span><br />
+          <td><span class="summary-sig"><a href="script-GTEvaluator-module.html#get_parser" class="summary-sig-name">get_parser</a>()</span><br />
       Parse arguments</td>
           <td align="right" valign="top">
             
@@ -166,14 +153,15 @@
     <td width="15%" align="right" valign="top" class="summary">
       <span class="summary-type">&nbsp;</span>
     </td><td class="summary">
-        <a href="script-GTSelector_statistic-module.html#__doc__" class="summary-name">__doc__</a> = <code title="&quot;&quot;&quot;
-Compute specificity and sensitivity for each target and variant from m\
-atrix. 
+        <a href="script-GTEvaluator-module.html#__doc__" class="summary-name">__doc__</a> = <code title="&quot;&quot;&quot;
+GTEvaluator workfow. First, run GTEvaluator_matrixMaker then run GTEva\
+luator_statistic.
+
 
 @requires: U{python 2.7&lt;https://www.python.org/downloads/&gt;} (tested wi\
 th 2.7.6)
-@requires: U{scipy &lt;http://www.scipy.org/scipylib/download.html&gt;}
-&quot;&quot;&quot;"><code class="variable-ellipsis">...</code></code>
+@requires: U{Biopython&lt;http://biopython.org/wiki/Download&gt;}
+..."><code class="variable-ellipsis">...</code></code>
     </td>
   </tr>
 <tr>
@@ -255,13 +243,14 @@ th 2.7.6)
     <dt>Value:</dt>
       <dd><table><tr><td><pre class="variable">
 &quot;&quot;&quot;
-Compute specificity and sensitivity for each target and variant from m<span class="variable-linewrap"><img src="crarr.png" alt="\" /></span>
-atrix. 
+GTEvaluator workfow. First, run GTEvaluator_matrixMaker then run GTEva<span class="variable-linewrap"><img src="crarr.png" alt="\" /></span>
+luator_statistic.
+
 
 @requires: U{python 2.7&lt;https://www.python.org/downloads/&gt;} (tested wi<span class="variable-linewrap"><img src="crarr.png" alt="\" /></span>
 th 2.7.6)
-@requires: U{scipy &lt;http://www.scipy.org/scipylib/download.html&gt;}
-&quot;&quot;&quot;
+@requires: U{Biopython&lt;http://biopython.org/wiki/Download&gt;}
+<code class="variable-ellipsis">...</code>
 </pre></td></tr></table>
 </dd>
   </dl>
@@ -291,7 +280,7 @@ th 2.7.6)
 <table border="0" cellpadding="0" cellspacing="0" width="100%%">
   <tr>
     <td align="left" class="footer">
-    Generated by Epydoc 3.0.1 on Tue Sep 22 13:56:32 2015
+    Generated by Epydoc 3.0.1 on Mon Jul 17 14:03:56 2017
     </td>
     <td align="right" class="footer">
       <a target="mainFrame" href="http://epydoc.sourceforge.net"

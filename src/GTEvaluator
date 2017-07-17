@@ -1,0 +1,97 @@
+#!/usr/bin/python
+# -*- coding: iso-8859-1 -*-
+import os, sys
+import argparse
+
+
+__doc__="""
+GTEvaluator workfow. First, run GTEvaluator_matrixMaker then run GTEvaluator_statistic.
+
+
+@requires: U{python 2.7<https://www.python.org/downloads/>} (tested with 2.7.6)
+@requires: U{Biopython<http://biopython.org/wiki/Download>}
+@requires: U{scipy <http://www.scipy.org/scipylib/download.html>}
+@requires: U{EMBOSS<http://emboss.sourceforge.net/download/>}
+
+@requires: GTEvaluator_matrixMaker
+@requires: GTEvaluator_statistic
+"""
+
+def get_parser():
+	"""
+	Parse arguments
+	@return: arguments list
+	@rtype: parser object
+	"""
+
+	parser = argparse.ArgumentParser(description='GTEvaluator workfow. First, run GTEvaluator_matrixMaker \
+		then run GTEvaluator_statistic.')
+
+	parser.add_argument('-i', action="store", dest='FASTA', 
+						type=str, help='genomes list with servovar name separated by tabular')
+
+	parser.add_argument('-p', action="store", dest='CSV', 
+						type=str, help='target TSV file')
+
+	parser.add_argument('-m', action="store", dest='maxDistance', 
+						type=int, default='1400', help='primers forward and reverse max distance (default:1400)')
+
+	parser.add_argument('-T', action="store", dest='nbThreads', 
+						type=int, default='1', help='maximum number of threads to use (default:1)')
+
+	parser.add_argument('-o', action="store", dest='output', 
+						type=str, default='output', help='output name (default:output)')
+
+	parser.add_argument('--trim', action="store", dest='trim', 
+						type=int, default=0, help='trim n nucleotides at 5\' (default:0)')	
+
+	parser.add_argument('--CiMin', action="store", dest='Ci_min', 
+						type=float, default=0.025, help='minimum confidence value (default:0.025)')
+
+	parser.add_argument('--CiMax', action="store", dest='Ci_max', 
+						type=float, default=0.975, help='maximum confidence value (default:0.975)')
+
+
+	return parser
+
+
+
+#main function	
+def main():
+
+
+	##################### gets arguments #####################
+	parser=get_parser()
+	
+	#print parser.help if no arguments
+	if len(sys.argv)==1:
+		parser.print_help()
+		sys.exit(1)
+	
+	Arguments=parser.parse_args()
+
+	if (not Arguments.FASTA) or (not Arguments.CSV):
+		print "Error : genomes file and/or primers file not specified"
+		sys.exit(1)
+
+
+	print("--> GTEvaluator_matrixMaker")
+
+	args = ["-i", Arguments.FASTA, "-p", Arguments.CSV, "-m", str(Arguments.maxDistance), "-T", str(Arguments.nbThreads), "-o", \
+	Arguments.output + "_matrix.tsv", "--trim", str(Arguments.trim)]
+	os.system("GTEvaluator_matrixMaker " + " ".join(args))
+
+
+	print("--> GTEvaluator_statistic")
+
+	args = ["-i", Arguments.output + "_matrix.tsv", "-o", Arguments.output, "--CiMin", str(Arguments.Ci_min), \
+	"--CiMax", str(Arguments.Ci_max)]
+	os.system("GTEvaluator_statistic " + " ".join(args))
+
+	print("Finish!")
+
+
+
+
+if __name__ == "__main__":
+	main()						

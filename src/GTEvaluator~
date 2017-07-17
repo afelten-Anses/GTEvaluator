@@ -5,7 +5,7 @@ import argparse
 
 
 __doc__="""
-GTSelector workfow. First, run GTSelector_matrixMaker then run GTSelector_statistic.
+GTEvaluator workfow. First, run GTEvaluator_matrixMaker then run GTEvaluator_statistic.
 
 
 @requires: U{python 2.7<https://www.python.org/downloads/>} (tested with 2.7.6)
@@ -13,8 +13,8 @@ GTSelector workfow. First, run GTSelector_matrixMaker then run GTSelector_statis
 @requires: U{scipy <http://www.scipy.org/scipylib/download.html>}
 @requires: U{EMBOSS<http://emboss.sourceforge.net/download/>}
 
-@requires: GTSelector_matrixMaker
-@requires: GTSelector_statistic
+@requires: GTEvaluator_matrixMaker
+@requires: GTEvaluator_statistic
 """
 
 def get_parser():
@@ -75,18 +75,18 @@ def main():
 		sys.exit(1)
 
 
-	print("--> GTSelector_matrixMaker")
+	print("--> GTEvaluator_matrixMaker")
 
 	args = ["-i", Arguments.FASTA, "-p", Arguments.CSV, "-m", str(Arguments.maxDistance), "-T", str(Arguments.nbThreads), "-o", \
 	Arguments.output + "_matrix.tsv", "--trim", str(Arguments.trim)]
-	os.system("GTSelector_matrixMaker " + " ".join(args))
+	os.system("GTEvaluator_matrixMaker " + " ".join(args))
 
 
-	print("--> GTSelector_statistic")
+	print("--> GTEvaluator_statistic")
 
 	args = ["-i", Arguments.output + "_matrix.tsv", "-o", Arguments.output, "--CiMin", str(Arguments.Ci_min), \
 	"--CiMax", str(Arguments.Ci_max)]
-	os.system("GTSelector_statistic " + " ".join(args))
+	os.system("GTEvaluator_statistic " + " ".join(args))
 
 	print("Finish!")
 
