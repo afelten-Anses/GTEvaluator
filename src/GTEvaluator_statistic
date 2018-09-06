@@ -87,13 +87,19 @@ class primerStat(object) :
 		"""
 		Compute the sensitivity
 		"""
-		self.sensitivity=round(float(self.TP)/float(float(self.TP)+float(self.FN)),3)
+		if self.TP==0 and self.FN==0:
+			self.sensitivity = 0
+		else :	
+			self.sensitivity=round(float(self.TP)/float(float(self.TP)+float(self.FN)),3)
 
 	def computeSpecificity(self):
 		"""
 		Compute the specificity
 		"""
-		self.specificity=round(float(self.TN)/float(float(self.TN)+float(self.FP)),3)		
+		if self.TN==0 and self.FP==0:
+			self.sensitivity = 0
+		else :	
+			self.specificity=round(float(self.TN)/float(float(self.TN)+float(self.FP)),3)		
 
 	def computeDistance(self):
 		"""
@@ -128,8 +134,9 @@ def main():
 	Arguments=parser.parse_args()
 	varSubject = "all"
 
-	with open(Arguments.TSV, 'rb') as csvfile:
-		TSVreader = csv.reader(csvfile, delimiter='\t')
+	with open(Arguments.TSV, 'r') as csvfile:
+		TSVreader = csvfile.readlines()
+		#TSVreader = csv.reader(csvfile, delimiter='\t')
 
 		firstLine = True
 		totalPrimer = {}

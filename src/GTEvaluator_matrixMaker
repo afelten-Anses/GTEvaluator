@@ -196,11 +196,10 @@ def genomeReader(file) :
 	dico = {}
 
 	for line in lines:
+		line = line.rstrip()
 		if(line!="\n"):
 			genomeFile = line.split('\t')[0]
 			genomeName= line.split('\t')[1]
-			if ('\n' in genomeName):
-				genomeName = genomeName[0:len(genomeName)-1]
 
 		dico[genomeFile] = genomeName
 		f=open(genomeFile, "rb")
